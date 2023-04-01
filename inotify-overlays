@@ -1,0 +1,26 @@
+#!/bin/bash
+
+EVENTS="modify,move,create,delete"
+TMP="/tmp/inotify_overlays.tmp"
+PATH_TO_OVERLAYS+=( $(find /home -regextype posix-egrep -regex \
+    ".*/containers/.*" -type d -name 'diff' 2>/dev/null) )
+
+#create tmp file with overlays
+create_tmp_file () {
+if [ -e $TMP ]; then
+    rm -f $TMP
+fi
+
+if [ "${#PATH_TO_OVERLAYS[@]}" -ne 0 ]; then
+    for overlay in "${PATH_TO_OVERLAYS[@]}"; do
+        echo $overlay >> $TMP
+    done
+fi
+}
+
+#main
+create_tmp_file
+if [ -s $TMP ]; then
+    inotifywait -m --recursive --event $EVENTS --fromfile $TMP \
+            --format "WARNING File %f was %e in %w" | systemd-cat -t "podsec"
+fi
