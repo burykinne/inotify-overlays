@@ -2,25 +2,31 @@
 
 EVENTS="modify,move,create,delete"
 TMP="/tmp/inotify_overlays.tmp"
+LOGFILE="/var/log/inotify.log"
 PATH_TO_OVERLAYS+=( $(find /home -regextype posix-egrep -regex \
     ".*/containers/.*" -type d -name 'diff' 2>/dev/null) )
 
-#create tmp file with overlays
-create_tmp_file () {
-if [ -e $TMP ]; then
-    rm -f $TMP
-fi
-
+#create file with all rootless overlays
+get_overlays () {
 if [ "${#PATH_TO_OVERLAYS[@]}" -ne 0 ]; then
+    rm -rf $TMP
     for overlay in "${PATH_TO_OVERLAYS[@]}"; do
         echo $overlay >> $TMP
     done
 fi
 }
 
+#send event to syslog
+run_logger () {
+    logger -t inotify-overlays $(tail -n1 $LOGFILE)
+}
+
 #main
-create_tmp_file
+get_overlays
 if [ -s $TMP ]; then
-    inotifywait -m --recursive --event $EVENTS --fromfile $TMP \
-            --format "WARNING File %f was %e in %w" | systemd-cat -t "podsec"
+    touch $LOGFILE
+    while inotifywait -q --recursive --event $EVENTS --fromfile $TMP \
+            --format "File %f was %e in %w" --outfile $LOGFILE; do
+        run_logger
+    done
 fi
