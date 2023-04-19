@@ -3,7 +3,9 @@ Description=Run inotifywatch for podman overlays
 
 [Service]
 ExecStart=/usr/bin/inotify-overlays
-Restart=on-failure
+Restart=always
+RestartSec=3s
+RuntimeMaxSec=100
 SyslogIdentifier=inotify-overlays
 
 [Install]

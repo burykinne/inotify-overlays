@@ -6,7 +6,7 @@ LOGFILE="/var/log/inotify.log"
 PATH_TO_OVERLAYS+=( $(find /home -regextype posix-egrep -regex \
     ".*/containers/.*" -type d -name 'diff' 2>/dev/null) )
 
-INFO_LOG="NO"		#if you don't want to log "info" events, \
+INFO_LOG="YES"		#if you don't want to log "info" events, \
 			#then change "YES" to "NO"
 
 #create file with all rootless overlays
@@ -31,10 +31,10 @@ run_logger () {
     fi
     
     #create event on journal
-    if [ "$level" == "INFO" ] && [ "$INFO_LOG" == "NO" ]; then
-        :
-    else
-	logger -t inotify-overlays "$level: $edge_log_string"
+    if [ "$level" == "INFO" ] && [ "$INFO_LOG" == "YES" ]; then
+        logger -t inotify-overlays "$level: $edge_log_string"
+    elif [ "$level" == "CRITICAL" ]; then
+        logger -t inotify-overlays "$level: $edge_log_string"
     fi
 }
 
@@ -42,7 +42,7 @@ run_logger () {
 get_overlays
 if [ -s $TMP ]; then
     touch $LOGFILE
-    while inotifywait -q --recursive --event $EVENTS --fromfile $TMP \
+    while inotifywait -q -t 15 --recursive --event $EVENTS --fromfile $TMP \
             --format "File %f was %e in %w" --outfile $LOGFILE; do
         run_logger
     done
